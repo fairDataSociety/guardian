@@ -1,4 +1,4 @@
-import { fetchStamp, topupStamp, ttlDays, type StampInfo } from "../lib/bee";
+import { fetchStamp, topupStamp, fetchChainState, calcTopupAmount, ttlDays, type StampInfo } from "../lib/bee";
 import {
   sendAlert,
   shouldAlert,
@@ -157,19 +157,31 @@ async function attemptTopup(
   const label = entry.name;
   const currentDays = ttlDays(stamp.batchTTL);
   const targetDays = config.warn_days * 2;
+  const extraDays = targetDays - currentDays;
 
-  // Calculate needed amount in PLUR (BZZ * 10^16)
-  // This is a simplified calculation - actual amount depends on postage price
-  const neededDaysBlocks = ((targetDays - currentDays) * 86400) / 5;
-  // Use a reasonable estimate: 1 BZZ per ~30 days for depth 20
-  const estimatedBzz = Math.ceil((targetDays - currentDays) / 30) * 10;
-  const topupBzz = Math.min(estimatedBzz, config.max_topup_bzz);
+  // Fetch current postage price from Bee
+  let currentPrice: bigint;
+  try {
+    const chainState = await fetchChainState(beeUrl);
+    currentPrice = BigInt(chainState.currentPrice);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    logError("chainstate_fetch_failed", { error: msg });
+    return;
+  }
+
+  // Calculate per-chunk amount to add for the desired extra days
+  const topupAmount = calcTopupAmount(extraDays, currentPrice);
+
+  // Estimate total BZZ cost: amount * 2^depth / 10^16
+  const totalPlur = topupAmount * BigInt(2 ** stamp.depth);
+  const estimatedBzz = Number(totalPlur) / 1e16;
 
   // Check circuit breaker
   const check = canTopup(
     state,
     entry.id,
-    topupBzz,
+    estimatedBzz,
     config.max_daily_spend_bzz
   );
   if (!check.allowed) {
@@ -192,27 +204,31 @@ async function attemptTopup(
     return;
   }
 
-  // Convert BZZ to PLUR (10^16 per BZZ)
-  const plurAmount = BigInt(topupBzz) * BigInt(10 ** 16);
+  // Cap per-chunk amount to max_topup_bzz equivalent
+  const maxAmount = BigInt(config.max_topup_bzz) * BigInt(10 ** 16) / BigInt(2 ** stamp.depth);
+  const cappedAmount = topupAmount < maxAmount ? topupAmount : maxAmount;
 
   logInfo("topup_attempt", {
     stamp: label,
-    amount_bzz: topupBzz,
+    per_chunk_amount: cappedAmount.toString(),
+    estimated_bzz: Math.round(estimatedBzz * 100) / 100,
     current_ttl_days: Math.round(currentDays),
     target_ttl_days: targetDays,
+    current_price: currentPrice.toString(),
   });
 
   if (dryRun) {
     logInfo("topup_dry_run", {
       stamp: label,
-      amount_bzz: topupBzz,
+      per_chunk_amount: cappedAmount.toString(),
+      estimated_bzz: Math.round(estimatedBzz * 100) / 100,
     });
     return;
   }
 
   try {
-    const batchId = await topupStamp(beeUrl, entry.id, plurAmount);
-    recordTopup(state, entry.id, topupBzz);
+    const batchId = await topupStamp(beeUrl, entry.id, cappedAmount);
+    recordTopup(state, entry.id, estimatedBzz);
 
     logInfo("topup_success", {
       stamp: label,
@@ -227,7 +243,7 @@ async function attemptTopup(
         "info",
         "Stamp Topped Up",
         label,
-        `Added ${topupBzz} BZZ (was ${Math.round(currentDays)} days TTL)`,
+        `Added ~${Math.round(estimatedBzz * 100) / 100} BZZ (was ${Math.round(currentDays)} days TTL)`,
         dryRun
       );
       recordAlert(state, alertKey);

@@ -68,6 +68,31 @@ export async function fetchStamp(
   return (await resp.json()) as StampInfo;
 }
 
+export interface ChainState {
+  chainTip: number;
+  block: number;
+  totalAmount: string;
+  currentPrice: string;
+}
+
+export async function fetchChainState(beeUrl: string): Promise<ChainState> {
+  const resp = await fetchWithRetry(`${beeUrl}/chainstate`);
+  if (!resp.ok) {
+    throw new Error(`Chainstate API error: ${resp.status} ${resp.statusText}`);
+  }
+  return (await resp.json()) as ChainState;
+}
+
+/**
+ * Calculate per-chunk amount needed for a given number of extra days.
+ * amount = extraBlocks * currentPrice
+ * extraBlocks = extraDays * 86400 / GNOSIS_BLOCK_TIME
+ */
+export function calcTopupAmount(extraDays: number, currentPrice: bigint): bigint {
+  const extraBlocks = BigInt(Math.ceil((extraDays * 86400) / GNOSIS_BLOCK_TIME));
+  return extraBlocks * currentPrice;
+}
+
 export async function topupStamp(
   beeUrl: string,
   batchId: string,
