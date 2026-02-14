@@ -1,0 +1,24 @@
+[Unit]
+Description=FDS Infrastructure Guardian
+After=bee.service network-online.target
+Conflicts=guardian-lock.service
+
+[Service]
+Type=oneshot
+User=guardian
+Group=guardian
+WorkingDirectory=/opt/guardian/current
+ExecStart=/opt/guardian/current/node_modules/.bin/bun guardian.ts
+EnvironmentFile=/etc/guardian/guardian.env
+TimeoutStartSec=300
+
+# Security hardening
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/guardian
+NoNewPrivileges=true
+PrivateTmp=true
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=guardian

@@ -1,0 +1,10 @@
+{
+  "name": "guardian",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "ethers": "^6.16.0",
+    "yaml": "^2.7.0"
+  }
+}

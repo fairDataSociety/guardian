@@ -1,0 +1,4 @@
+guardian.yaml
+*.env
+node_modules/
+state.json

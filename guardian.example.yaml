@@ -1,0 +1,60 @@
+bee_url: http://localhost:1633
+
+healthcheck:
+  ping_url_env: GUARDIAN_HEALTHCHECK_URL
+
+alerts:
+  webhook_url_env: GUARDIAN_WEBHOOK_URL
+  cooldown:
+    warn: 24h
+    critical: 6h
+    info: 24h
+
+stamps:
+  warn_days: 30
+  critical_days: 7
+  auto_topup: true
+  max_topup_bzz: 100
+  max_daily_spend_bzz: 300
+  max_topups_per_run: 3
+  allowed_ids:
+    - id: bd18b469371c9311719df319ff859d69a67047bb91d92d77c03999bf30fb4519
+      name: prod-default
+    - id: 3c2d9eac17ab37e4d2f72c8a993ae4b1d35670a54d029a29deb4b51e418527e2
+      name: prod-free
+
+balances:
+  chains:
+    mainnet:
+      id: 1
+      rpc_env: MAINNET_RPC_URL
+      rpc_default: https://eth.llamarpc.com
+    gnosis:
+      id: 100
+      rpc_env: GNOSIS_RPC_URL
+      rpc_default: https://rpc.gnosischain.com
+  tokens:
+    bzz:
+      chain: gnosis
+      address: "0xdBF3Ea6F5beE45c02255B2c26a16F300502F68da"
+      decimals: 16
+  entries:
+    - name: bee-node
+      address: "0xa40ad4ed8ff369e945e8bd56cc7c25f1a924cb8e"
+      chain: gnosis
+      checks:
+        - token: native
+          warn: "0.5"
+          critical: "0.1"
+        - token: bzz
+          warn: "5"
+          critical: "1"
+    - name: ens-registrar
+      address: "0x800e391958A6EdE6EbC82D6aEE89fB7D7427033b"
+      chain: mainnet
+      checks:
+        - token: native
+          warn: "0.01"
+          critical: "0.005"
+
+state_file: /var/lib/guardian/state.json
