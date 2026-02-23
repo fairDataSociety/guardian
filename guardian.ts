@@ -4,7 +4,7 @@ import { readFileSync, existsSync } from "fs";
 import { parse } from "yaml";
 import { logInfo, logWarn, logError } from "./lib/logger";
 import { checkBeeHealth } from "./lib/bee";
-import { pingHealthcheck, type CooldownConfig } from "./lib/alert";
+import { pingHealthcheck, type CooldownConfig, type TelegramConfig } from "./lib/alert";
 import { loadState, saveState, freshState, type GuardianState } from "./lib/state";
 import { checkStamps, type StampConfig } from "./checks/stamps";
 import { checkBalances, type BalancesConfig } from "./checks/balances";
@@ -17,7 +17,8 @@ interface GuardianConfig {
     ping_url_env: string;
   };
   alerts: {
-    webhook_url_env: string;
+    telegram_bot_token_env: string;
+    telegram_chat_id_env: string;
     cooldown: CooldownConfig;
   };
   stamps: StampConfig;
@@ -59,14 +60,15 @@ async function main(): Promise<void> {
   }
 
   // Validate required env vars
-  const webhookUrl = process.env[config.alerts.webhook_url_env];
-  if (!webhookUrl) {
-    logError("missing_env", { var: config.alerts.webhook_url_env });
-    console.error(
-      `Error: ${config.alerts.webhook_url_env} not set.`
-    );
+  const botToken = process.env[config.alerts.telegram_bot_token_env];
+  const chatId = process.env[config.alerts.telegram_chat_id_env];
+  if (!botToken || !chatId) {
+    const missing = !botToken ? config.alerts.telegram_bot_token_env : config.alerts.telegram_chat_id_env;
+    logError("missing_env", { var: missing });
+    console.error(`Error: ${missing} not set.`);
     process.exit(1);
   }
+  const telegram: TelegramConfig = { botToken, chatId };
 
   const healthcheckUrl = process.env[config.healthcheck.ping_url_env];
 
@@ -111,7 +113,7 @@ async function main(): Promise<void> {
       beeUrl,
       config.stamps,
       state,
-      webhookUrl,
+      telegram,
       config.alerts.cooldown,
       dryRun
     );
@@ -128,7 +130,7 @@ async function main(): Promise<void> {
     const balanceResult = await checkBalances(
       config.balances,
       state,
-      webhookUrl,
+      telegram,
       config.alerts.cooldown,
       dryRun
     );

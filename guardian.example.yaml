@@ -4,7 +4,8 @@ healthcheck:
   ping_url_env: GUARDIAN_HEALTHCHECK_URL
 
 alerts:
-  webhook_url_env: GUARDIAN_WEBHOOK_URL
+  telegram_bot_token_env: GUARDIAN_TELEGRAM_BOT_TOKEN
+  telegram_chat_id_env: GUARDIAN_TELEGRAM_CHAT_ID
   cooldown:
     warn: 24h
     critical: 6h

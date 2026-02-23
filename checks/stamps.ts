@@ -4,6 +4,7 @@ import {
   shouldAlert,
   type AlertLevel,
   type CooldownConfig,
+  type TelegramConfig,
 } from "../lib/alert";
 import {
   type GuardianState,
@@ -31,7 +32,7 @@ export async function checkStamps(
   beeUrl: string,
   config: StampConfig,
   state: GuardianState,
-  webhookUrl: string,
+  telegram: TelegramConfig,
   cooldowns: CooldownConfig,
   dryRun: boolean
 ): Promise<CheckResult> {
@@ -52,7 +53,7 @@ export async function checkStamps(
       const alertKey = `stamp:${entry.id.slice(0, 8)}:unreachable`;
       if (shouldAlert(state, alertKey, "critical", cooldowns)) {
         await sendAlert(
-          webhookUrl,
+          telegram,
           "critical",
           "Stamp Unreachable",
           label,
@@ -84,7 +85,7 @@ export async function checkStamps(
       const alertKey = `stamp:${entry.id.slice(0, 8)}:critical`;
       if (shouldAlert(state, alertKey, "critical", cooldowns)) {
         await sendAlert(
-          webhookUrl,
+          telegram,
           "critical",
           "Stamp TTL Critical",
           label,
@@ -112,7 +113,7 @@ export async function checkStamps(
           stamp,
           config,
           state,
-          webhookUrl,
+          telegram,
           cooldowns,
           dryRun
         );
@@ -121,7 +122,7 @@ export async function checkStamps(
         const alertKey = `stamp:${entry.id.slice(0, 8)}:warn`;
         if (shouldAlert(state, alertKey, "warn", cooldowns)) {
           await sendAlert(
-            webhookUrl,
+            telegram,
             "warn",
             "Stamp TTL Low",
             label,
@@ -150,7 +151,7 @@ async function attemptTopup(
   stamp: StampInfo,
   config: StampConfig,
   state: GuardianState,
-  webhookUrl: string,
+  telegram: string,
   cooldowns: CooldownConfig,
   dryRun: boolean
 ): Promise<void> {
@@ -192,7 +193,7 @@ async function attemptTopup(
     const alertKey = `stamp:${entry.id.slice(0, 8)}:topup_blocked`;
     if (shouldAlert(state, alertKey, "warn", cooldowns)) {
       await sendAlert(
-        webhookUrl,
+        telegram,
         "warn",
         "Topup Blocked",
         label,
@@ -239,7 +240,7 @@ async function attemptTopup(
     const alertKey = `stamp:${entry.id.slice(0, 8)}:topup_success`;
     if (shouldAlert(state, alertKey, "info", cooldowns)) {
       await sendAlert(
-        webhookUrl,
+        telegram,
         "info",
         "Stamp Topped Up",
         label,
@@ -254,7 +255,7 @@ async function attemptTopup(
 
     const alertKey = `stamp:${entry.id.slice(0, 8)}:topup_failed`;
     await sendAlert(
-      webhookUrl,
+      telegram,
       "critical",
       "Topup Failed",
       label,

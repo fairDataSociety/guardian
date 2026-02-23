@@ -12,6 +12,7 @@ import {
   shouldAlert,
   type AlertLevel,
   type CooldownConfig,
+  type TelegramConfig,
 } from "../lib/alert";
 import { type GuardianState, recordAlert } from "../lib/state";
 import { logInfo, logWarn, logError } from "../lib/logger";
@@ -42,7 +43,7 @@ interface CheckResult {
 export async function checkBalances(
   config: BalancesConfig,
   state: GuardianState,
-  webhookUrl: string,
+  telegram: TelegramConfig,
   cooldowns: CooldownConfig,
   dryRun: boolean
 ): Promise<CheckResult> {
@@ -107,7 +108,7 @@ export async function checkBalances(
             const alertKey = `balance:${entry.name}:${check.token}:critical`;
             if (shouldAlert(state, alertKey, "critical", cooldowns)) {
               await sendAlert(
-                webhookUrl,
+                telegram,
                 "critical",
                 "Balance Critical",
                 entry.name,
@@ -129,7 +130,7 @@ export async function checkBalances(
             const alertKey = `balance:${entry.name}:${check.token}:warn`;
             if (shouldAlert(state, alertKey, "warn", cooldowns)) {
               await sendAlert(
-                webhookUrl,
+                telegram,
                 "warn",
                 "Balance Low",
                 entry.name,
@@ -175,7 +176,7 @@ export async function checkBalances(
         const alertKey = `balance:${entry.name}:${check.token}:rpc_error`;
         if (shouldAlert(state, alertKey, "critical", cooldowns)) {
           await sendAlert(
-            webhookUrl,
+            telegram,
             "critical",
             "RPC Unreachable",
             entry.name,

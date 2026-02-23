@@ -3,16 +3,15 @@ import type { GuardianState } from "./state";
 
 export type AlertLevel = "info" | "warn" | "critical";
 
-interface AlertField {
-  name: string;
-  value: string;
-  inline?: boolean;
+export interface TelegramConfig {
+  botToken: string;
+  chatId: string;
 }
 
-const LEVEL_COLORS: Record<AlertLevel, number> = {
-  info: 3066993,     // green
-  warn: 16776960,    // yellow
-  critical: 16711680, // red
+const LEVEL_EMOJI: Record<AlertLevel, string> = {
+  info: "\u2705",     // green check
+  warn: "\u26a0\ufe0f",      // warning
+  critical: "\ud83d\udea8",  // siren
 };
 
 function parseDuration(s: string): number {
@@ -44,27 +43,18 @@ export function shouldAlert(
 }
 
 export async function sendAlert(
-  webhookUrl: string,
+  telegram: TelegramConfig,
   level: AlertLevel,
   check: string,
   target: string,
   details: string,
   dryRun: boolean = false
 ): Promise<boolean> {
-  const payload = {
-    embeds: [
-      {
-        title: `Guardian: ${level.toUpperCase()}`,
-        color: LEVEL_COLORS[level],
-        fields: [
-          { name: "Check", value: check, inline: true },
-          { name: "Target", value: target, inline: true },
-          { name: "Details", value: details },
-        ] as AlertField[],
-        timestamp: new Date().toISOString(),
-      },
-    ],
-  };
+  const emoji = LEVEL_EMOJI[level];
+  const text = `${emoji} <b>Guardian: ${level.toUpperCase()}</b>\n\n` +
+    `<b>Check:</b> ${check}\n` +
+    `<b>Target:</b> ${target}\n` +
+    `<b>Details:</b> ${details}`;
 
   if (dryRun) {
     logInfo("alert_dry_run", {
@@ -76,16 +66,22 @@ export async function sendAlert(
     return true;
   }
 
+  const url = `https://api.telegram.org/bot${telegram.botToken}/sendMessage`;
+
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const resp = await fetch(webhookUrl, {
+      const resp = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          chat_id: telegram.chatId,
+          text,
+          parse_mode: "HTML",
+        }),
         signal: AbortSignal.timeout(5000),
       });
 
-      if (resp.ok || resp.status === 204) {
+      if (resp.ok) {
         logInfo("alert_sent", { level, check, target });
         return true;
       }
